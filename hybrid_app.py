@@ -217,7 +217,9 @@ class ConversionEngine:
             # HTML conversions (Python-based)
             'html_to_txt', 'html_to_csv', 'html_to_xlsx', 'html_to_pptx', 'html_to_png', 'html_to_jpg',
             # DOCX/PPTX/XLSX to CSV conversions (NEW)
-            'docx_to_csv', 'docx_to_xlsx', 'pptx_to_csv', 'xlsx_to_csv'
+            'docx_to_csv', 'docx_to_xlsx', 'pptx_to_csv', 'xlsx_to_csv',
+            # Excel/CSV to PDF conversions (Python-based)
+            'xlsx_to_pdf', 'csv_to_pdf', 'xls_to_pdf'
         ]
         
         if self.has_wkhtmltopdf:
@@ -2296,6 +2298,192 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
         except Exception as e:
             logger.error(f"TXT to XLSX conversion failed: {str(e)}")
             return False
+    
+    def convert_xlsx_to_pdf(self, input_path, output_path):
+        """Convert XLSX to PDF by creating a formatted PDF from spreadsheet data."""
+        try:
+            import pandas as pd
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.lib import colors
+            from reportlab.lib.units import inch
+            
+            # Read Excel file
+            df = pd.read_excel(input_path, sheet_name=0)
+            
+            # Create PDF document
+            doc = SimpleDocTemplate(output_path, pagesize=A4)
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Add title
+            title = Paragraph(f"Spreadsheet: {os.path.basename(input_path)}", styles['Heading1'])
+            story.append(title)
+            story.append(Spacer(1, 0.2*inch))
+            
+            # Limit data size for PDF compatibility
+            max_rows = 100
+            max_cols = 10
+            
+            if len(df) > max_rows:
+                note = Paragraph(f"Note: Showing first {max_rows} rows of {len(df)} total rows.", styles['Normal'])
+                story.append(note)
+                story.append(Spacer(1, 0.1*inch))
+                df = df.head(max_rows)
+            
+            if len(df.columns) > max_cols:
+                note = Paragraph(f"Note: Showing first {max_cols} columns of {len(df.columns)} total columns.", styles['Normal'])
+                story.append(note)
+                story.append(Spacer(1, 0.1*inch))
+                df = df.iloc[:, :max_cols]
+            
+            # Prepare table data
+            data = []
+            # Add headers
+            headers = [str(col) for col in df.columns]
+            data.append(headers)
+            
+            # Add data rows
+            for _, row in df.iterrows():
+                row_data = []
+                for value in row:
+                    if pd.isna(value):
+                        row_data.append('')
+                    else:
+                        str_val = str(value)
+                        # Truncate long values
+                        if len(str_val) > 50:
+                            str_val = str_val[:47] + '...'
+                        row_data.append(str_val)
+                data.append(row_data)
+            
+            # Create table
+            if data:
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                story.append(table)
+            else:
+                story.append(Paragraph("No data found in spreadsheet.", styles['Normal']))
+            
+            # Build PDF
+            doc.build(story)
+            
+            logger.info(f"Successfully converted XLSX to PDF: {output_path}")
+            return True
+            
+        except ImportError:
+            # Fallback: Convert to CSV first, then to a simple text-based PDF
+            logger.info("ReportLab not available, using fallback method")
+            return self._xlsx_to_pdf_fallback(input_path, output_path)
+        except Exception as e:
+            logger.error(f"XLSX to PDF conversion failed: {str(e)}")
+            return False
+    
+    def _xlsx_to_pdf_fallback(self, input_path, output_path):
+        """Fallback XLSX to PDF conversion using simple text rendering."""
+        try:
+            import pandas as pd
+            from PIL import Image, ImageDraw, ImageFont
+            
+            # Read Excel data
+            df = pd.read_excel(input_path, sheet_name=0)
+            
+            # Convert to text representation
+            text_content = f"Spreadsheet: {os.path.basename(input_path)}\n\n"
+            text_content += df.to_string(max_rows=50, max_cols=10, index=False)
+            
+            # Create temporary text file and convert to PDF
+            import tempfile
+            temp_txt = os.path.join(tempfile.gettempdir(), f"xlsx_temp_{uuid.uuid4()}.txt")
+            try:
+                with open(temp_txt, 'w', encoding='utf-8') as f:
+                    f.write(text_content)
+                
+                # Create image from text
+                img = Image.new('RGB', (2480, 3508), color='white')  # A4 size at 300 DPI
+                draw = ImageDraw.Draw(img)
+                
+                try:
+                    font = ImageFont.truetype("arial.ttf", 24)
+                except:
+                    font = ImageFont.load_default()
+                
+                # Draw text
+                lines = text_content.split('\n')
+                y = 100
+                for line in lines:
+                    if y > 3300:  # Near bottom of page
+                        break
+                    # Word wrap
+                    if len(line) > 100:
+                        line = line[:97] + '...'
+                    draw.text((100, y), line, font=font, fill='black')
+                    y += 30
+                
+                # Convert to PDF
+                img.save(output_path, 'PDF')
+                logger.info(f"Successfully converted XLSX to PDF (fallback): {output_path}")
+                return True
+                
+            finally:
+                try:
+                    os.remove(temp_txt)
+                except Exception:
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"XLSX to PDF fallback conversion failed: {str(e)}")
+            return False
+    
+    def convert_csv_to_pdf(self, input_path, output_path):
+        """Convert CSV to PDF by creating a formatted table in PDF."""
+        try:
+            # First convert CSV to XLSX, then to PDF
+            import tempfile
+            temp_xlsx = os.path.join(tempfile.gettempdir(), f"csv_temp_{uuid.uuid4()}.xlsx")
+            try:
+                if self.convert_csv_to_office(input_path, temp_xlsx, 'xlsx'):
+                    return self.convert_xlsx_to_pdf(temp_xlsx, output_path)
+                return False
+            finally:
+                try:
+                    os.remove(temp_xlsx)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"CSV to PDF conversion failed: {str(e)}")
+            return False
+    
+    def convert_xls_to_pdf(self, input_path, output_path):
+        """Convert XLS to PDF via XLSX."""
+        try:
+            import tempfile
+            temp_xlsx = os.path.join(tempfile.gettempdir(), f"xls_temp_{uuid.uuid4()}.xlsx")
+            try:
+                # First convert XLS to XLSX
+                if self.convert_csv_to_office(input_path, temp_xlsx, 'xlsx'):
+                    return self.convert_xlsx_to_pdf(temp_xlsx, output_path)
+                return False
+            finally:
+                try:
+                    os.remove(temp_xlsx)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"XLS to PDF conversion failed: {str(e)}")
+            return False
             
     def convert_csv_to_office(self, input_path, output_path, output_format):
         """Convert CSV to office formats using pandas and basic templates."""
@@ -2566,6 +2754,23 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
         # PowerPoint to PDF conversions (using python-pptx)
         if input_ext in ['pptx', 'ppt'] and output_format == 'pdf':
             if self.convert_pptx_to_pdf(input_path, output_path):
+                return output_path
+        
+        # === NEW: Excel/CSV to PDF conversions ===
+        
+        # XLSX to PDF conversions
+        if input_ext == 'xlsx' and output_format == 'pdf':
+            if self.convert_xlsx_to_pdf(input_path, output_path):
+                return output_path
+        
+        # CSV to PDF conversions
+        if input_ext == 'csv' and output_format == 'pdf':
+            if self.convert_csv_to_pdf(input_path, output_path):
+                return output_path
+        
+        # XLS to PDF conversions
+        if input_ext == 'xls' and output_format == 'pdf':
+            if self.convert_xls_to_pdf(input_path, output_path):
                 return output_path
         
         # === NEW: Office documents to CSV/XLSX conversions ===
