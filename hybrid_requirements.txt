@@ -1,0 +1,24 @@
+flask==3.0.0
+werkzeug==3.0.1
+requests==2.31.0
+gunicorn==21.2.0
+
+# Document processing libraries
+Pillow==10.4.0
+pdfkit==1.0.0
+pdfplumber==0.10.3
+pandas==2.1.4
+openpyxl==3.1.2
+pypdfium2==4.26.0
+
+# Optional: Enhanced PDF processing
+# pdf2image==1.16.3  # Uncomment if you want PDF to image conversion
+# poppler-utils  # Required for pdf2image on Linux
+
+# Optional: Word document processing
+# python-docx==0.8.11  # Basic DOCX reading
+# docx2pdf==0.1.8  # DOCX to PDF conversion (Windows/Mac)
+
+# Development and testing
+# pytest==7.4.3
+# pytest-flask==1.3.0
