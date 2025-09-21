@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Converter - All Formats</title>
+    <title>Modern Document Converter</title>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#764ba2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="DocConverter">
-    <meta name="description" content="Convert documents between all formats - Word, PowerPoint, Excel, PDF, and more">
+    <meta name="description" content="Convert documents instantly without software installation">
     
     <!-- PWA Links -->
     <link rel="manifest" href="/manifest.json">
@@ -19,7 +19,6 @@
     <!-- Preload critical resources -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" as="script">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" as="script">
-
     <style>
         * {
             margin: 0;
@@ -35,7 +34,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -65,195 +64,79 @@
             padding: 40px;
         }
 
-        .status-bar {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-        }
-
-        .status-available { background: #28a745; }
-        .status-unavailable { background: #dc3545; }
-        .status-optional { background: #ffc107; color: #000; }
-
-        .conversion-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            margin: 40px 0;
-        }
-
-        .conversion-section {
-            background: #f8f9ff;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        .converter-section {
+            margin-bottom: 60px;
         }
 
         .section-title {
-            font-size: 1.5em;
+            font-size: 1.8em;
             font-weight: 600;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             color: #333;
             display: flex;
             align-items: center;
-            justify-content: center;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-right: 15px;
+            border-radius: 2px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
             text-align: center;
-        }
-
-        .section-title.to-pdf {
-            color: #dc3545;
-        }
-
-        .section-title.from-pdf {
-            color: #007bff;
-        }
-
-        .conversion-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .conversion-option {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
+            background: #fafafa;
             transition: all 0.3s ease;
             cursor: pointer;
-            border: 2px solid transparent;
             position: relative;
         }
 
-        .conversion-option:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            border-color: #667eea;
-        }
-
-        .conversion-option.available {
-            border-color: #28a745;
-        }
-
-        .conversion-option.limited {
-            border-color: #ffc107;
-            background: #fff9e6;
-        }
-
-        .conversion-option.unavailable {
-            border-color: #dc3545;
-            background: #ffe6e6;
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .option-icon {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            font-size: 24px;
-        }
-
-        .icon-jpg { background: linear-gradient(135deg, #ff6b6b, #ff5252); }
-        .icon-word { background: linear-gradient(135deg, #2196f3, #1976d2); }
-        .icon-powerpoint { background: linear-gradient(135deg, #ff9800, #f57c00); }
-        .icon-excel { background: linear-gradient(135deg, #4caf50, #388e3c); }
-        .icon-html { background: linear-gradient(135deg, #e91e63, #c2185b); }
-        .icon-pdf { background: linear-gradient(135deg, #f44336, #d32f2f); }
-
-        .option-text {
-            font-weight: 600;
-            color: #333;
-            font-size: 0.9em;
-        }
-
-        .option-status {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-
-        .upload-section {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            margin: 40px 0;
-            border: 3px dashed #ddd;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .upload-section:hover, .upload-section.drag-over {
+        .upload-area:hover, .upload-area.drag-over {
             border-color: #667eea;
             background: #f0f4ff;
         }
 
         .upload-icon {
-            font-size: 4em;
+            font-size: 3em;
             margin-bottom: 20px;
             color: #ccc;
         }
 
-        .upload-section.drag-over .upload-icon {
+        .upload-area.drag-over .upload-icon {
             color: #667eea;
         }
 
         .upload-text {
-            font-size: 1.2em;
+            font-size: 1.1em;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .format-selector {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            justify-content: center;
             margin: 30px 0;
-            flex-wrap: wrap;
+        }
+
+        .format-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
         }
 
         .format-selector select {
-            padding: 12px 20px;
+            width: 100%;
+            padding: 12px;
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 1em;
             background: white;
             cursor: pointer;
-            min-width: 150px;
         }
 
         .format-selector select:focus {
@@ -271,7 +154,8 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin: 0 10px;
+            display: inline-block;
+            text-decoration: none;
         }
 
         .convert-btn:hover {
@@ -286,26 +170,42 @@
             box-shadow: none;
         }
 
-        .client-side-section {
-            background: #e8f5e8;
-            border-radius: 20px;
+        .client-converter {
+            background: #f8f9ff;
+            border-radius: 15px;
             padding: 30px;
-            margin: 40px 0;
         }
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
         }
 
         .feature-card {
             background: white;
             border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5em;
+            margin-bottom: 15px;
         }
 
         .loading {
@@ -360,39 +260,47 @@
             display: none;
         }
 
-        .legend {
+        .supported-formats {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .supported-formats h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .format-list {
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px 0;
             flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        .format-tag {
+            background: #e9ecef;
+            padding: 5px 12px;
+            border-radius: 20px;
             font-size: 0.9em;
-        }
-
-        .legend-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
+            color: #666;
         }
 
         @media (max-width: 768px) {
-            .conversion-grid {
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .main-content {
+                padding: 30px 20px;
+            }
+            
+            .feature-grid {
                 grid-template-columns: 1fr;
-                gap: 20px;
-            }
-            
-            .conversion-options {
-                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            }
-            
-            .format-selector {
-                flex-direction: column;
             }
         }
     </style>
@@ -404,209 +312,139 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📄 Document Converter Pro</h1>
-            <p>Convert between all document formats - Office, PDF, Images, and more!</p>
+            <h1>🔄 Modern Document Converter</h1>
+            <p>Convert documents instantly - no software installation required!</p>
         </div>
 
         <div class="main-content">
-            <!-- Status Bar -->
-            <div class="status-bar">
-                <div class="status-item">
-                    <div class="status-icon {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">
-                        {% if has_libreoffice %}✓{% else %}✗{% endif %}
+            <!-- Server-side Conversion -->
+            <div class="converter-section">
+                <h2 class="section-title">Server-side Conversion</h2>
+                <form id="serverForm" enctype="multipart/form-data">
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">
+                            <strong>Click to upload</strong> or drag and drop your file here
+                        </div>
+                        <input type="file" id="fileInput" name="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.html,.jpg,.jpeg,.png,.txt,.csv">
                     </div>
-                    <span>LibreOffice (Office docs)</span>
-                </div>
-                <div class="status-item">
-                    <div class="status-icon {% if has_wkhtmltopdf %}status-available{% else %}status-unavailable{% endif %}">
-                        {% if has_wkhtmltopdf %}✓{% else %}✗{% endif %}
+
+                    <div class="file-info" id="fileInfo">
+                        <strong>Selected file:</strong> <span id="fileName"></span>
                     </div>
-                    <span>wkhtmltopdf (HTML→PDF)</span>
-                </div>
-                <!-- CloudConvert not needed with our comprehensive Python-based solution -->
-                <div class="status-item">
-                    <div class="status-icon status-available">✓</div>
-                    <span>Full Format Support (117+ conversions)</span>
-                </div>
-                <div class="status-item">
-                    <div class="status-icon status-available">✓</div>
-                    <span>Client-side processing</span>
+
+                    <div class="format-selector">
+                        <label for="outputFormat">Convert to:</label>
+                        <select id="outputFormat" name="output_format">
+                            <option value="pdf">PDF</option>
+                            <option value="docx">DOCX</option>
+                            <option value="doc">DOC</option>
+                            <option value="xlsx">XLSX</option>
+                            <option value="xls">XLS</option>
+                            <option value="pptx">PPTX</option>
+                            <option value="ppt">PPT</option>
+                            <option value="html">HTML</option>
+                            <option value="txt">TXT</option>
+                            <option value="csv">CSV</option>
+                            <option value="jpg">JPG</option>
+                            <option value="png">PNG</option>
+                        </select>
+                    </div>
+
+                    <div class="error" id="errorMessage"></div>
+                    <div class="success" id="successMessage"></div>
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div>Converting your document...</div>
+                    </div>
+
+                    <button type="submit" class="convert-btn" id="convertBtn">
+                        🔄 Convert Document
+                    </button>
+                </form>
+
+                <p style="margin-top: 15px; color: #28a745; text-align: center; font-weight: 600;">
+                    ✅ 117+ conversions supported - Full functionality enabled!
+                </p>
+            </div>
+
+            <!-- Client-side Conversion -->
+            <div class="converter-section">
+                <h2 class="section-title">Client-side Conversion (No Upload Required)</h2>
+                <div class="client-converter">
+                    <p style="margin-bottom: 30px; color: #666;">
+                        Convert files directly in your browser - files never leave your device!
+                    </p>
+
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📄</div>
+                            <h3>Text to PDF</h3>
+                            <p>Convert plain text files to PDF format instantly</p>
+                            <input type="file" id="txtToPdf" accept=".txt" style="margin-top: 15px;">
+                            <button onclick="convertTextToPdf()" class="convert-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9em;">
+                                Convert to PDF
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">📊</div>
+                            <h3>CSV to Excel</h3>
+                            <p>Convert CSV files to Excel format with formatting</p>
+                            <input type="file" id="csvToXlsx" accept=".csv" style="margin-top: 15px;">
+                            <button onclick="convertCsvToExcel()" class="convert-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9em;">
+                                Convert to Excel
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">🖼️</div>
+                            <h3>Images to PDF</h3>
+                            <p>Combine multiple images into a single PDF</p>
+                            <input type="file" id="imgToPdf" accept=".jpg,.jpeg,.png" multiple style="margin-top: 15px;">
+                            <button onclick="convertImagesToPdf()" class="convert-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9em;">
+                                Convert to PDF
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">🌐</div>
+                            <h3>HTML to PDF</h3>
+                            <p>Convert HTML content to PDF format</p>
+                            <textarea id="htmlContent" placeholder="Paste your HTML here..." style="width: 100%; height: 100px; margin: 15px 0; padding: 10px; border-radius: 5px; border: 2px solid #ddd;"></textarea>
+                            <button onclick="convertHtmlToPdf()" class="convert-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9em;">
+                                Convert to PDF
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Legend -->
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-dot status-available"></div>
-                    <span>Available & Working</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot status-unavailable"></div>
-                    <span>Optional Enhancement</span>
-                </div>
-            </div>
-
-            <!-- Conversion Options Grid -->
-            <div class="conversion-grid">
-                <!-- Convert TO PDF -->
-                <div class="conversion-section">
-                    <h2 class="section-title to-pdf">CONVERT TO PDF</h2>
-                    <div class="conversion-options">
-                        <div class="conversion-option {% if has_libreoffice or capabilities.python_libs %}available{% else %}unavailable{% endif %}" data-conversion="jpg_to_pdf">
-                            <div class="option-icon icon-jpg">📷</div>
-                            <div class="option-text">JPG to PDF</div>
-                            <div class="option-status status-available">✓</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="word_to_pdf">
-                            <div class="option-icon icon-word">📝</div>
-                            <div class="option-text">WORD to PDF</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="powerpoint_to_pdf">
-                            <div class="option-icon icon-powerpoint">📊</div>
-                            <div class="option-text">POWERPOINT to PDF</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="excel_to_pdf">
-                            <div class="option-icon icon-excel">📈</div>
-                            <div class="option-text">EXCEL to PDF</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option {% if has_wkhtmltopdf %}available{% else %}limited{% endif %}" data-conversion="html_to_pdf">
-                            <div class="option-icon icon-html">🌐</div>
-                            <div class="option-text">HTML to PDF</div>
-                            <div class="option-status {% if has_wkhtmltopdf %}status-available{% else %}status-optional{% endif %}">{% if has_wkhtmltopdf %}✓{% else %}?{% endif %}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Convert FROM PDF -->
-                <div class="conversion-section">
-                    <h2 class="section-title from-pdf">CONVERT FROM PDF</h2>
-                    <div class="conversion-options">
-                        <div class="conversion-option limited" data-conversion="pdf_to_jpg">
-                            <div class="option-icon icon-jpg">📷</div>
-                            <div class="option-text">PDF to JPG</div>
-                            <div class="option-status status-optional">?</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="pdf_to_word">
-                            <div class="option-icon icon-word">📝</div>
-                            <div class="option-text">PDF to WORD</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="pdf_to_powerpoint">
-                            <div class="option-icon icon-powerpoint">📊</div>
-                            <div class="option-text">PDF to POWERPOINT</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option {% if has_libreoffice %}available{% else %}unavailable{% endif %}" data-conversion="pdf_to_excel">
-                            <div class="option-icon icon-excel">📈</div>
-                            <div class="option-text">PDF to EXCEL</div>
-                            <div class="option-status {% if has_libreoffice %}status-available{% else %}status-unavailable{% endif %}">{% if has_libreoffice %}✓{% else %}✗{% endif %}</div>
-                        </div>
-                        <div class="conversion-option available" data-conversion="pdf_to_pdfa">
-                            <div class="option-icon icon-pdf">📄</div>
-                            <div class="option-text">PDF to PDF/A</div>
-                            <div class="option-status status-optional">?</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- File Upload Section -->
-            <div class="upload-section" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📁</div>
-                <div class="upload-text">
-                    <strong>Click to upload your file</strong> or drag and drop it here<br>
-                    <small>Supports: DOC, DOCX, XLS, XLSX, PPT, PPTX, PDF, HTML, JPG, PNG, and more</small>
-                </div>
-                <input type="file" id="fileInput" name="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.html,.htm,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt,.csv,.rtf,.odt,.ods,.odp">
-            </div>
-
-            <div class="file-info" id="fileInfo">
-                <strong>Selected file:</strong> <span id="fileName"></span>
-            </div>
-
-            <div class="format-selector">
-                <label for="outputFormat"><strong>Convert to:</strong></label>
-                <select id="outputFormat" name="output_format">
-                    <option value="pdf">PDF</option>
-                    <option value="doc">DOC</option>
-                    <option value="docx">DOCX</option>
-                    <option value="xls">XLS</option>
-                    <option value="xlsx">XLSX</option>
-                    <option value="ppt">PPT</option>
-                    <option value="pptx">PPTX</option>
-                    <option value="html">HTML</option>
-                    <option value="txt">TXT</option>
-                    <option value="csv">CSV</option>
-                    <option value="jpg">JPG</option>
-                    <option value="png">PNG</option>
-                </select>
-            </div>
-
-            <div class="error" id="errorMessage"></div>
-            <div class="success" id="successMessage"></div>
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <div>Converting your document...</div>
-            </div>
-
-            <div style="text-align: center;">
-                <button type="button" class="convert-btn" id="convertBtn" onclick="performConversion()">
-                    🔄 Convert Document
-                </button>
-            </div>
-
-            <!-- Client-Side Processing Section -->
-            <div class="client-side-section">
-                <h2 style="text-align: center; margin-bottom: 20px; color: #2d5016;">⚡ Instant Client-Side Conversions</h2>
-                <p style="text-align: center; margin-bottom: 20px; color: #666;">These conversions happen instantly in your browser - no upload required!</p>
-                
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <div class="option-icon icon-pdf" style="margin: 0 auto 15px;">📄</div>
-                        <h4>Text → PDF</h4>
-                        <input type="file" id="txtToPdf" accept=".txt" style="margin: 10px 0;">
-                        <button onclick="convertTextToPdf()" class="convert-btn" style="padding: 8px 16px; font-size: 0.9em;">
-                            Convert
-                        </button>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="option-icon icon-excel" style="margin: 0 auto 15px;">📊</div>
-                        <h4>CSV → Excel</h4>
-                        <input type="file" id="csvToXlsx" accept=".csv" style="margin: 10px 0;">
-                        <button onclick="convertCsvToExcel()" class="convert-btn" style="padding: 8px 16px; font-size: 0.9em;">
-                            Convert
-                        </button>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="option-icon icon-jpg" style="margin: 0 auto 15px;">🖼️</div>
-                        <h4>Images → PDF</h4>
-                        <input type="file" id="imgToPdf" accept=".jpg,.jpeg,.png" multiple style="margin: 10px 0;">
-                        <button onclick="convertImagesToPdf()" class="convert-btn" style="padding: 8px 16px; font-size: 0.9em;">
-                            Convert
-                        </button>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="option-icon icon-html" style="margin: 0 auto 15px;">🌐</div>
-                        <h4>HTML → PDF</h4>
-                        <textarea id="htmlContent" placeholder="Paste HTML here..." style="width: 100%; height: 60px; margin: 10px 0; padding: 8px; border-radius: 5px; border: 1px solid #ddd;"></textarea>
-                        <button onclick="convertHtmlToPdf()" class="convert-btn" style="padding: 8px 16px; font-size: 0.9em;">
-                            Convert
-                        </button>
-                    </div>
+            <div class="supported-formats">
+                <h3>Supported Formats</h3>
+                <div class="format-list">
+                    <span class="format-tag">DOC</span>
+                    <span class="format-tag">DOCX</span>
+                    <span class="format-tag">XLS</span>
+                    <span class="format-tag">XLSX</span>
+                    <span class="format-tag">PPT</span>
+                    <span class="format-tag">PPTX</span>
+                    <span class="format-tag">PDF</span>
+                    <span class="format-tag">HTML</span>
+                    <span class="format-tag">JPG</span>
+                    <span class="format-tag">PNG</span>
+                    <span class="format-tag">TXT</span>
+                    <span class="format-tag">CSV</span>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Server-side conversion
-        async function performConversion() {
+        // Server-side conversion handling
+        document.getElementById('serverForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
             const fileInput = document.getElementById('fileInput');
             const loading = document.getElementById('loading');
             const errorDiv = document.getElementById('errorMessage');
@@ -657,8 +495,8 @@
                 loading.style.display = 'none';
                 convertBtn.disabled = false;
             }
-        }
-
+        });
+        
         // File input handling
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -667,24 +505,24 @@
                 document.getElementById('fileInfo').style.display = 'block';
             }
         });
-
+        
         // Drag and drop handling
-        const uploadArea = document.querySelector('.upload-section');
-
+        const uploadArea = document.querySelector('.upload-area');
+        
         uploadArea.addEventListener('dragover', function(e) {
             e.preventDefault();
             uploadArea.classList.add('drag-over');
         });
-
+        
         uploadArea.addEventListener('dragleave', function(e) {
             e.preventDefault();
             uploadArea.classList.remove('drag-over');
         });
-
+        
         uploadArea.addEventListener('drop', function(e) {
             e.preventDefault();
             uploadArea.classList.remove('drag-over');
-
+            
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 document.getElementById('fileInput').files = files;
@@ -692,55 +530,20 @@
                 document.getElementById('fileInfo').style.display = 'block';
             }
         });
-
-        // Conversion option clicks
-        document.querySelectorAll('.conversion-option').forEach(option => {
-            option.addEventListener('click', function() {
-                if (this.classList.contains('unavailable')) return;
-                
-                const conversion = this.dataset.conversion;
-                if (conversion) {
-                    // Set appropriate format based on conversion type
-                    const outputFormat = document.getElementById('outputFormat');
-                    if (conversion.includes('to_pdf')) {
-                        outputFormat.value = 'pdf';
-                    } else if (conversion.includes('pdf_to_word')) {
-                        outputFormat.value = 'docx';
-                    } else if (conversion.includes('pdf_to_excel')) {
-                        outputFormat.value = 'xlsx';
-                    } else if (conversion.includes('pdf_to_powerpoint')) {
-                        outputFormat.value = 'pptx';
-                    } else if (conversion.includes('pdf_to_jpg')) {
-                        outputFormat.value = 'jpg';
-                    }
-                    
-                    // Scroll to upload section
-                    document.querySelector('.upload-section').scrollIntoView({ 
-                        behavior: 'smooth' 
-                    });
-                }
-            });
-        });
-
+        
         // Utility functions
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 10000);
         }
-
+        
         function showSuccess(message) {
             const successDiv = document.getElementById('successMessage');
             successDiv.textContent = message;
             successDiv.style.display = 'block';
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 5000);
         }
-
+        
         function downloadBlob(blob, filename) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -751,7 +554,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
-
+        
         // Client-side conversion functions
         async function convertTextToPdf() {
             const fileInput = document.getElementById('txtToPdf');
@@ -759,73 +562,73 @@
                 alert('Please select a text file');
                 return;
             }
-
+            
             try {
                 const file = fileInput.files[0];
                 const text = await file.text();
-
+                
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-
+                
                 // Split text into lines that fit the page
                 const splitText = doc.splitTextToSize(text, 180);
                 doc.text(splitText, 10, 20);
-
+                
                 const pdfBlob = doc.output('blob');
                 downloadBlob(pdfBlob, file.name.replace(/\.[^/.]+$/, '') + '.pdf');
-
-                showSuccess('Text file converted to PDF successfully!');
+                
+                alert('Text file converted to PDF successfully!');
             } catch (error) {
-                showError('Error converting file: ' + error.message);
+                alert('Error converting file: ' + error.message);
             }
         }
-
+        
         async function convertCsvToExcel() {
             const fileInput = document.getElementById('csvToXlsx');
             if (!fileInput.files[0]) {
                 alert('Please select a CSV file');
                 return;
             }
-
+            
             try {
                 const file = fileInput.files[0];
                 const text = await file.text();
-
+                
                 // Parse CSV
                 const rows = text.split('\n').map(row => row.split(','));
-
+                
                 // Create workbook
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.aoa_to_sheet(rows);
                 XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
+                
                 // Generate Excel file
                 const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
                 const excelBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
+                
                 downloadBlob(excelBlob, file.name.replace(/\.[^/.]+$/, '') + '.xlsx');
-
-                showSuccess('CSV file converted to Excel successfully!');
+                
+                alert('CSV file converted to Excel successfully!');
             } catch (error) {
-                showError('Error converting file: ' + error.message);
+                alert('Error converting file: ' + error.message);
             }
         }
-
+        
         async function convertImagesToPdf() {
             const fileInput = document.getElementById('imgToPdf');
             if (!fileInput.files.length) {
                 alert('Please select one or more image files');
                 return;
             }
-
+            
             try {
                 const { PDFDocument } = PDFLib;
                 const pdfDoc = await PDFDocument.create();
-
+                
                 for (let i = 0; i < fileInput.files.length; i++) {
                     const file = fileInput.files[i];
                     const arrayBuffer = await file.arrayBuffer();
-
+                    
                     let image;
                     if (file.type === 'image/jpeg') {
                         image = await pdfDoc.embedJpg(arrayBuffer);
@@ -834,11 +637,11 @@
                     } else {
                         continue;
                     }
-
+                    
                     const page = pdfDoc.addPage();
                     const { width, height } = page.getSize();
                     const scaledImage = image.scale(Math.min(width / image.width, height / image.height));
-
+                    
                     page.drawImage(image, {
                         x: (width - scaledImage.width) / 2,
                         y: (height - scaledImage.height) / 2,
@@ -846,49 +649,49 @@
                         height: scaledImage.height,
                     });
                 }
-
+                
                 const pdfBytes = await pdfDoc.save();
                 const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-
+                
                 downloadBlob(pdfBlob, 'images_combined.pdf');
-
-                showSuccess('Images converted to PDF successfully!');
+                
+                alert('Images converted to PDF successfully!');
             } catch (error) {
-                showError('Error converting images: ' + error.message);
+                alert('Error converting images: ' + error.message);
             }
         }
-
+        
         async function convertHtmlToPdf() {
             const htmlContent = document.getElementById('htmlContent').value;
             if (!htmlContent.trim()) {
                 alert('Please enter HTML content');
                 return;
             }
-
+            
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-
+                
                 // Simple HTML to text conversion (basic)
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = htmlContent;
                 const text = tempDiv.textContent || tempDiv.innerText || '';
-
+                
                 const splitText = doc.splitTextToSize(text, 180);
                 doc.text(splitText, 10, 20);
-
+                
                 const pdfBlob = doc.output('blob');
                 downloadBlob(pdfBlob, 'html_content.pdf');
-
-                showSuccess('HTML converted to PDF successfully!');
+                
+                alert('HTML converted to PDF successfully!');
             } catch (error) {
-                showError('Error converting HTML: ' + error.message);
+                alert('Error converting HTML: ' + error.message);
             }
         }
-
+        
         // PWA Installation and Service Worker
         let deferredPrompt;
-
+        
         // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', async () => {
@@ -900,12 +703,12 @@
                 }
             });
         }
-
+        
         // Handle PWA install prompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-
+            
             // Show install button
             const installBtn = document.createElement('button');
             installBtn.textContent = '📱 Install App';
@@ -925,7 +728,7 @@
             });
             document.body.appendChild(installBtn);
         });
-
+        
         // Handle successful installation
         window.addEventListener('appinstalled', (evt) => {
             console.log('App was installed.');
