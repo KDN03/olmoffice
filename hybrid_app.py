@@ -2612,14 +2612,21 @@ if __name__ == '__main__':
     logger.info(f"wkhtmltopdf available: {conversion_engine.has_wkhtmltopdf}")
     logger.info(f"CloudConvert API configured: {bool(CLOUDCONVERT_API_KEY)}")
     
-    # Production vs Development configuration
-    is_production = os.environ.get('FLASK_ENV') == 'production'
+    # Simple deployment configuration
     port = int(os.environ.get('PORT', 5000))
     
-    if is_production:
-        # Production mode - let gunicorn handle it
-        logger.info("Running in production mode")
+    # Check if running on Render.com or other cloud platform
+    is_cloud = os.environ.get('PORT') is not None
+    
+    if is_cloud:
+        # Production mode - cloud deployment
+        host = '0.0.0.0'
+        debug = False
+        logger.info(f"Starting in production mode on {host}:{port}")
     else:
-        # Development mode
-        logger.info("Running in development mode")
-        app.run(debug=True, host='127.0.0.1', port=port)
+        # Development mode - local
+        host = '127.0.0.1'
+        debug = True
+        logger.info(f"Starting in development mode on {host}:{port}")
+    
+    app.run(debug=debug, host=host, port=port, threaded=True)
