@@ -215,7 +215,9 @@ class ConversionEngine:
             # TXT conversions (Python-based)
             'txt_to_html', 'txt_to_pptx', 'txt_to_csv', 'txt_to_xlsx', 'txt_to_png', 'txt_to_jpg',
             # HTML conversions (Python-based)
-            'html_to_txt', 'html_to_csv', 'html_to_xlsx', 'html_to_pptx', 'html_to_png', 'html_to_jpg'
+            'html_to_txt', 'html_to_csv', 'html_to_xlsx', 'html_to_pptx', 'html_to_png', 'html_to_jpg',
+            # DOCX/PPTX/XLSX to CSV conversions (NEW)
+            'docx_to_csv', 'docx_to_xlsx', 'pptx_to_csv', 'xlsx_to_csv'
         ]
         
         if self.has_wkhtmltopdf:
@@ -2591,6 +2593,20 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
         if input_ext == 'html' and output_format == 'csv':
             if self.convert_html_to_csv(input_path, output_path):
                 return output_path
+        
+        # HTML to XLSX conversions (via CSV)
+        if input_ext == 'html' and output_format == 'xlsx':
+            import tempfile
+            temp_csv = os.path.join(tempfile.gettempdir(), f"html_temp_{uuid.uuid4()}.csv")
+            try:
+                if self.convert_html_to_csv(input_path, temp_csv):
+                    if self.convert_csv_to_office(temp_csv, output_path, 'xlsx'):
+                        return output_path
+            finally:
+                try:
+                    os.remove(temp_csv)
+                except Exception:
+                    pass
         
         # TXT to CSV/XLSX conversions
         if input_ext == 'txt' and output_format == 'csv':
