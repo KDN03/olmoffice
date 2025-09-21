@@ -2090,6 +2090,211 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
             logger.error(f"XLSX to image conversion failed: {str(e)}")
             return False
     
+    def convert_docx_to_csv(self, input_path, output_path):
+        """Convert DOCX to CSV by extracting text and creating simple CSV."""
+        try:
+            from docx import Document
+            import csv
+            
+            # Read DOCX document
+            doc = Document(input_path)
+            
+            # Extract all text and organize into rows
+            rows = []
+            current_row = []
+            
+            # Try to extract tables first (if any)
+            has_tables = False
+            for table in doc.tables:
+                has_tables = True
+                for row in table.rows:
+                    csv_row = []
+                    for cell in row.cells:
+                        csv_row.append(cell.text.strip())
+                    rows.append(csv_row)
+            
+            # If no tables, extract paragraphs as single-column CSV
+            if not has_tables:
+                rows.append(['Content'])  # Header
+                for para in doc.paragraphs:
+                    text = para.text.strip()
+                    if text:  # Skip empty paragraphs
+                        rows.append([text])
+            
+            # Write to CSV
+            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                for row in rows:
+                    writer.writerow(row)
+            
+            logger.info(f"Successfully converted DOCX to CSV: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"DOCX to CSV conversion failed: {str(e)}")
+            return False
+    
+    def convert_docx_to_xlsx(self, input_path, output_path):
+        """Convert DOCX to XLSX by extracting text and creating spreadsheet."""
+        try:
+            import tempfile
+            # First convert to CSV, then to XLSX
+            temp_csv = os.path.join(tempfile.gettempdir(), f"docx_temp_{uuid.uuid4()}.csv")
+            try:
+                if self.convert_docx_to_csv(input_path, temp_csv):
+                    return self.convert_csv_to_office(temp_csv, output_path, 'xlsx')
+                return False
+            finally:
+                try:
+                    os.remove(temp_csv)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"DOCX to XLSX conversion failed: {str(e)}")
+            return False
+    
+    def convert_pptx_to_csv(self, input_path, output_path):
+        """Convert PPTX to CSV by extracting slide content."""
+        try:
+            from pptx import Presentation
+            import csv
+            
+            prs = Presentation(input_path)
+            
+            rows = [['Slide Number', 'Slide Title', 'Content']]  # Header
+            
+            for i, slide in enumerate(prs.slides, 1):
+                slide_title = ""
+                slide_content = []
+                
+                for shape in slide.shapes:
+                    if hasattr(shape, 'text') and shape.text.strip():
+                        text = shape.text.strip()
+                        if not slide_title and len(text) < 100:  # Likely a title
+                            slide_title = text
+                        else:
+                            slide_content.append(text)
+                
+                if not slide_title:
+                    slide_title = f"Slide {i}"
+                
+                content_text = " | ".join(slide_content) if slide_content else "[No content]"
+                rows.append([str(i), slide_title, content_text])
+            
+            # Write to CSV
+            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                for row in rows:
+                    writer.writerow(row)
+            
+            logger.info(f"Successfully converted PPTX to CSV: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"PPTX to CSV conversion failed: {str(e)}")
+            return False
+    
+    def convert_xlsx_to_csv(self, input_path, output_path):
+        """Convert XLSX to CSV using pandas."""
+        try:
+            import pandas as pd
+            
+            # Read first sheet of Excel file
+            df = pd.read_excel(input_path, sheet_name=0)
+            
+            # Save as CSV
+            df.to_csv(output_path, index=False)
+            
+            logger.info(f"Successfully converted XLSX to CSV: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"XLSX to CSV conversion failed: {str(e)}")
+            return False
+    
+    def convert_html_to_csv(self, input_path, output_path):
+        """Convert HTML to CSV by extracting text content."""
+        try:
+            import csv
+            import tempfile
+            
+            # First convert HTML to text
+            temp_txt = os.path.join(tempfile.gettempdir(), f"html_temp_{uuid.uuid4()}.txt")
+            try:
+                if self.convert_html_to_txt(input_path, temp_txt):
+                    # Read the text and create simple CSV
+                    with open(temp_txt, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    rows = [['Content']]
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if line:
+                            rows.append([line])
+                    
+                    with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+                        writer = csv.writer(csvfile)
+                        for row in rows:
+                            writer.writerow(row)
+                    
+                    logger.info(f"Successfully converted HTML to CSV: {output_path}")
+                    return True
+                return False
+            finally:
+                try:
+                    os.remove(temp_txt)
+                except Exception:
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"HTML to CSV conversion failed: {str(e)}")
+            return False
+    
+    def convert_txt_to_csv(self, input_path, output_path):
+        """Convert TXT to CSV by treating each line as a row."""
+        try:
+            import csv
+            
+            with open(input_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            rows = [['Line Number', 'Content']]
+            
+            for i, line in enumerate(content.split('\n'), 1):
+                line = line.strip()
+                if line:  # Skip empty lines
+                    rows.append([str(i), line])
+            
+            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                for row in rows:
+                    writer.writerow(row)
+            
+            logger.info(f"Successfully converted TXT to CSV: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"TXT to CSV conversion failed: {str(e)}")
+            return False
+    
+    def convert_txt_to_xlsx(self, input_path, output_path):
+        """Convert TXT to XLSX using temporary CSV."""
+        try:
+            import tempfile
+            temp_csv = os.path.join(tempfile.gettempdir(), f"txt_temp_{uuid.uuid4()}.csv")
+            try:
+                if self.convert_txt_to_csv(input_path, temp_csv):
+                    return self.convert_csv_to_office(temp_csv, output_path, 'xlsx')
+                return False
+            finally:
+                try:
+                    os.remove(temp_csv)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"TXT to XLSX conversion failed: {str(e)}")
+            return False
+            
     def convert_csv_to_office(self, input_path, output_path, output_format):
         """Convert CSV to office formats using pandas and basic templates."""
         try:
@@ -2359,6 +2564,41 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
         # PowerPoint to PDF conversions (using python-pptx)
         if input_ext in ['pptx', 'ppt'] and output_format == 'pdf':
             if self.convert_pptx_to_pdf(input_path, output_path):
+                return output_path
+        
+        # === NEW: Office documents to CSV/XLSX conversions ===
+        
+        # DOCX to CSV/XLSX conversions
+        if input_ext == 'docx' and output_format == 'csv':
+            if self.convert_docx_to_csv(input_path, output_path):
+                return output_path
+        
+        if input_ext == 'docx' and output_format == 'xlsx':
+            if self.convert_docx_to_xlsx(input_path, output_path):
+                return output_path
+        
+        # PPTX to CSV conversions
+        if input_ext == 'pptx' and output_format == 'csv':
+            if self.convert_pptx_to_csv(input_path, output_path):
+                return output_path
+        
+        # XLSX to CSV conversions
+        if input_ext == 'xlsx' and output_format == 'csv':
+            if self.convert_xlsx_to_csv(input_path, output_path):
+                return output_path
+        
+        # HTML to CSV conversions
+        if input_ext == 'html' and output_format == 'csv':
+            if self.convert_html_to_csv(input_path, output_path):
+                return output_path
+        
+        # TXT to CSV/XLSX conversions
+        if input_ext == 'txt' and output_format == 'csv':
+            if self.convert_txt_to_csv(input_path, output_path):
+                return output_path
+        
+        if input_ext == 'txt' and output_format == 'xlsx':
+            if self.convert_txt_to_xlsx(input_path, output_path):
                 return output_path
         
         # === PRIORITY 2: LibreOffice for office document conversions ===
