@@ -5,6 +5,7 @@ import logging
 import time
 import requests
 import shutil
+import gc
 from threading import Thread
 from flask import Flask, request, send_file, render_template, jsonify
 from werkzeug.utils import secure_filename
@@ -64,7 +65,7 @@ def allowed_file(filename):
     ext = filename.rsplit('.', 1)[-1].lower()
     return ext in ALLOWED_EXTENSIONS and len(filename) <= 255
 
-def cleanup_old_files(folder_path, max_age_hours=24):
+def cleanup_old_files(folder_path, max_age_hours=2):  # More frequent cleanup
     """Remove files older than max_age_hours from the specified folder."""
     try:
         current_time = time.time()
@@ -2322,9 +2323,9 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
             story.append(title)
             story.append(Spacer(1, 0.2*inch))
             
-            # Limit data size for PDF compatibility
-            max_rows = 100
-            max_cols = 10
+            # Limit data size for PDF compatibility and memory optimization
+            max_rows = 50  # Reduced for better memory usage
+            max_cols = 8   # Reduced for better memory usage
             
             if len(df) > max_rows:
                 note = Paragraph(f"Note: Showing first {max_rows} rows of {len(df)} total rows.", styles['Normal'])
@@ -2379,6 +2380,10 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
             
             # Build PDF
             doc.build(story)
+            
+            # Clean up memory after heavy operation
+            del data, story, doc, df
+            gc.collect()
             
             logger.info(f"Successfully converted XLSX to PDF: {output_path}")
             return True
