@@ -3045,7 +3045,7 @@ def convert():
         
         try:
             # Use the comprehensive conversion engine
-            output_path = conversion_engine.convert(input_path, output_format, input_ext, original_filename)
+            output_path = conversion_engine.convert_file(input_path, input_ext, output_format, original_filename)
             
             # SMART CLEANUP: Immediately clean up input file (not needed anymore)
             cleanup_file_immediately(input_path, "input")
