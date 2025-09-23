@@ -6,7 +6,8 @@ import time
 import requests
 import shutil
 import gc
-from threading import Thread
+from threading import Thread, Timer
+from datetime import datetime, timedelta
 from flask import Flask, request, send_file, render_template, jsonify
 from werkzeug.utils import secure_filename
 import tempfile
@@ -65,7 +66,7 @@ def allowed_file(filename):
     ext = filename.rsplit('.', 1)[-1].lower()
     return ext in ALLOWED_EXTENSIONS and len(filename) <= 255
 
-def cleanup_old_files(folder_path, max_age_hours=2):  # More frequent cleanup
+def cleanup_old_files(folder_path, max_age_hours=2):  # Background cleanup for forgotten files
     """Remove files older than max_age_hours from the specified folder."""
     try:
         current_time = time.time()
@@ -81,19 +82,48 @@ def cleanup_old_files(folder_path, max_age_hours=2):  # More frequent cleanup
                 if file_age > max_age_seconds:
                     try:
                         os.remove(file_path)
-                        logger.info(f"Cleaned up old file: {filename}")
+                        logger.info(f"Background cleanup: {filename}")
                     except OSError as e:
                         logger.error(f"Failed to remove {file_path}: {e}")
     except Exception as e:
-        logger.error(f"Cleanup failed for {folder_path}: {e}")
+        logger.error(f"Background cleanup failed for {folder_path}: {e}")
+
+def cleanup_file_immediately(file_path, file_type="temp"):
+    """Immediately delete a file (for input files and temp files)."""
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Immediately cleaned up {file_type} file: {os.path.basename(file_path)}")
+            return True
+    except OSError as e:
+        logger.warning(f"Failed to cleanup {file_type} file {file_path}: {e}")
+    return False
+
+def schedule_file_cleanup(file_path, delay_minutes=7, file_type="output"):
+    """Schedule a file for cleanup after a delay (for output files users need to download)."""
+    def delayed_cleanup():
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"Scheduled cleanup completed for {file_type} file: {os.path.basename(file_path)}")
+        except OSError as e:
+            logger.warning(f"Scheduled cleanup failed for {file_path}: {e}")
+    
+    # Schedule the cleanup
+    cleanup_timer = Timer(delay_minutes * 60, delayed_cleanup)
+    cleanup_timer.daemon = True  # Don't keep the app alive just for cleanup
+    cleanup_timer.start()
+    
+    logger.info(f"Scheduled {file_type} file cleanup in {delay_minutes} minutes: {os.path.basename(file_path)}")
+    return cleanup_timer
 
 def start_cleanup_thread():
-    """Start background thread for periodic cleanup."""
+    """Start background thread for periodic cleanup of forgotten files."""
     def cleanup_worker():
         while True:
-            time.sleep(3600)  # Run cleanup every hour
-            cleanup_old_files(UPLOAD_FOLDER)
-            cleanup_old_files(OUTPUT_FOLDER)
+            time.sleep(7200)  # Run cleanup every 2 hours (less frequent since we do immediate cleanup)
+            cleanup_old_files(UPLOAD_FOLDER, max_age_hours=1)  # Clean forgotten uploads after 1 hour
+            cleanup_old_files(OUTPUT_FOLDER, max_age_hours=2)  # Clean forgotten outputs after 2 hours
     
     cleanup_thread = Thread(target=cleanup_worker, daemon=True)
     cleanup_thread.start()
@@ -3015,24 +3045,28 @@ def convert():
         
         try:
             # Use the comprehensive conversion engine
-            output_path = conversion_engine.convert_file(input_path, input_ext, output_format, original_filename)
+            output_path = conversion_engine.convert(input_path, output_format, input_ext, original_filename)
             
-            # Clean up input file
-            try:
-                os.remove(input_path)
-            except OSError:
-                logger.warning(f"Could not remove input file: {input_path}")
+            # SMART CLEANUP: Immediately clean up input file (not needed anymore)
+            cleanup_file_immediately(input_path, "input")
             
             # Validate output file
             if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
                 raise Exception("Conversion produced invalid output file")
             
             logger.info(f"Conversion successful: {original_filename} -> {output_format}")
+            
+            # SMART CLEANUP: Schedule output file for cleanup in 7 minutes (gives user time to download)
+            schedule_file_cleanup(output_path, delay_minutes=7, file_type="output")
+            
             return send_file(output_path, as_attachment=True, 
                            download_name=f"{os.path.splitext(original_filename)[0]}.{output_format}")
             
         except Exception as e:
             logger.error(f"Conversion failed: {str(e)}")
+            
+            # Clean up input file on failure
+            cleanup_file_immediately(input_path, "input")
             
             # Determine what's missing and provide helpful error message
             error_msg = str(e)
@@ -3052,12 +3086,10 @@ def convert():
         
     except Exception as e:
         logger.error(f"Unexpected error during conversion: {str(e)}")
-        # Clean up input file if it exists
-        try:
-            if 'input_path' in locals() and os.path.exists(input_path):
-                os.remove(input_path)
-        except OSError:
-            pass
+        
+        # Clean up input file if it exists using smart cleanup
+        if 'input_path' in locals():
+            cleanup_file_immediately(input_path, "input")
             
         return jsonify({"error": "An unexpected error occurred during conversion."}), 500
 
