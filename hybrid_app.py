@@ -282,7 +282,7 @@ class ConversionEngine:
                 'doc_to_rtf', 'docx_to_rtf', 'odt_to_rtf',
                 
                 # Some PDF input conversions (limited)
-                'pdf_to_odt', 'pdf_to_rtf',
+                'pdf_to_odt', 'pdf_to_rtf', 'pdf_to_doc', 'pdf_to_docx',
                 
                 # HTML conversions via LibreOffice
                 'html_to_pdf', 'html_to_doc', 'html_to_docx', 'html_to_odt'
@@ -689,9 +689,18 @@ class ConversionEngine:
         """Convert PDF to DOCX using text extraction and python-docx."""
         return self.convert_pdf_to_word(input_path, output_path, 'docx')
     
+    def convert_pdf_to_doc(self, input_path, output_path):
+        """Convert PDF to DOC using text extraction and python-docx."""
+        return self.convert_pdf_to_word(input_path, output_path, 'doc')
+    
     def convert_pdf_to_word(self, input_path, output_path, output_format='docx'):
         """Convert PDF to Word document by extracting text and creating document."""
         try:
+            # python-docx can only create DOCX files, not DOC files
+            if output_format.lower() == 'doc':
+                logger.info("python-docx cannot create DOC files, falling back to LibreOffice")
+                return False
+            
             # Check if python-docx is available
             try:
                 from docx import Document
@@ -2777,7 +2786,7 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
         if input_ext == 'pdf' and output_format == 'doc':
             try:
                 logger.info(f"Attempting PDF to DOC conversion with python-docx")
-                if self.convert_pdf_to_word(input_path, output_path, output_format):
+                if self.convert_pdf_to_doc(input_path, output_path):
                     return output_path
             except Exception as e:
                 logger.warning(f"PDF to DOC conversion with python-docx failed: {e}")
