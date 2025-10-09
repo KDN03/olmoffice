@@ -685,6 +685,10 @@ class ConversionEngine:
             logger.error(f"CloudConvert conversion failed: {str(e)}")
             raise
     
+    def convert_pdf_to_docx(self, input_path, output_path):
+        """Convert PDF to DOCX using text extraction and python-docx."""
+        return self.convert_pdf_to_word(input_path, output_path, 'docx')
+    
     def convert_pdf_to_word(self, input_path, output_path, output_format='docx'):
         """Convert PDF to Word document by extracting text and creating document."""
         try:
@@ -2761,10 +2765,22 @@ img {{ max-width: 100%; height: auto; border: 1px solid #ddd; }}
             if self.convert_pdf_to_images(input_path, output_path, output_format):
                 return output_path
         
-        # PDF to Word documents (using python-docx)
-        if input_ext == 'pdf' and output_format in ['docx', 'doc']:
-            if self.convert_pdf_to_word(input_path, output_path, output_format):
-                return output_path
+        # PDF to Word documents (using python-docx) - PRIORITY 1
+        if input_ext == 'pdf' and output_format == 'docx':
+            try:
+                logger.info(f"Attempting PDF to DOCX conversion with python-docx")
+                if self.convert_pdf_to_docx(input_path, output_path):
+                    return output_path
+            except Exception as e:
+                logger.warning(f"PDF to DOCX conversion with python-docx failed: {e}")
+        
+        if input_ext == 'pdf' and output_format == 'doc':
+            try:
+                logger.info(f"Attempting PDF to DOC conversion with python-docx")
+                if self.convert_pdf_to_word(input_path, output_path, output_format):
+                    return output_path
+            except Exception as e:
+                logger.warning(f"PDF to DOC conversion with python-docx failed: {e}")
         
         # PDF to PowerPoint (using python-pptx)
         if input_ext == 'pdf' and output_format in ['pptx', 'ppt']:
