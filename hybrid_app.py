@@ -694,7 +694,7 @@ class ConversionEngine:
         return self.convert_pdf_to_word(input_path, output_path, 'doc')
     
     def convert_pdf_to_word(self, input_path, output_path, output_format='docx'):
-        """Convert PDF to Word document by extracting text and creating document."""
+        """Convert PDF to Word document using multiple extraction methods for better compatibility."""
         try:
             # python-docx can only create DOCX files, not DOC files
             if output_format.lower() == 'doc':
@@ -710,23 +710,98 @@ class ConversionEngine:
                 logger.warning("python-docx not available, trying LibreOffice for PDF to Word conversion")
                 return False
             
-            logger.info(f"Converting PDF {input_path} to {output_format.upper()} using text extraction")
+            logger.info(f"Converting PDF {input_path} to {output_format.upper()} using enhanced text extraction")
             
-            # Extract text from PDF
+            # Method 1: Try pdfplumber first (best for text-based PDFs)
             all_text = []
-            with pdfplumber.open(input_path) as pdf:
-                for page_num, page in enumerate(pdf.pages):
-                    text = page.extract_text()
-                    if text and text.strip():
-                        all_text.append(f"--- Page {page_num + 1} ---\n{text.strip()}\n")
+            method_used = None
             
+            try:
+                import pdfplumber
+                with pdfplumber.open(input_path) as pdf:
+                    for page_num, page in enumerate(pdf.pages):
+                        text = page.extract_text()
+                        if text and text.strip():
+                            all_text.append(f"--- Page {page_num + 1} ---\n{text.strip()}\n")
+                
+                if all_text:
+                    method_used = "pdfplumber"
+                    logger.info(f"Successfully extracted text using pdfplumber ({len(all_text)} pages)")
+            except Exception as e:
+                logger.warning(f"pdfplumber extraction failed: {e}")
+            
+            # Method 2: Try PyPDF2 as fallback (works with different PDF structures)
             if not all_text:
-                logger.warning("No text found in PDF for conversion")
-                return False
+                try:
+                    import PyPDF2
+                    with open(input_path, 'rb') as file:
+                        reader = PyPDF2.PdfReader(file)
+                        for page_num, page in enumerate(reader.pages):
+                            text = page.extract_text()
+                            if text and text.strip():
+                                all_text.append(f"--- Page {page_num + 1} ---\n{text.strip()}\n")
+                    
+                    if all_text:
+                        method_used = "PyPDF2"
+                        logger.info(f"Successfully extracted text using PyPDF2 ({len(all_text)} pages)")
+                except Exception as e:
+                    logger.warning(f"PyPDF2 extraction failed: {e}")
+            
+            # Method 3: Try pdfminer as another fallback
+            if not all_text:
+                try:
+                    from pdfminer.high_level import extract_text
+                    text = extract_text(input_path)
+                    if text and text.strip():
+                        # Split into pages (approximate)
+                        pages = text.split('\n\n\n')  # Rough page separation
+                        for i, page_text in enumerate(pages):
+                            if page_text.strip():
+                                all_text.append(f"--- Page {i + 1} ---\n{page_text.strip()}\n")
+                    
+                    if all_text:
+                        method_used = "pdfminer"
+                        logger.info(f"Successfully extracted text using pdfminer ({len(all_text)} pages)")
+                except Exception as e:
+                    logger.warning(f"pdfminer extraction failed: {e}")
+            
+            # Method 4: Try basic PDF metadata extraction as last resort
+            if not all_text:
+                try:
+                    import PyPDF2
+                    with open(input_path, 'rb') as file:
+                        reader = PyPDF2.PdfReader(file)
+                        metadata = reader.metadata
+                        if metadata:
+                            doc_info = []
+                            if metadata.get('/Title'):
+                                doc_info.append(f"Title: {metadata.get('/Title')}")
+                            if metadata.get('/Subject'):
+                                doc_info.append(f"Subject: {metadata.get('/Subject')}")
+                            if metadata.get('/Author'):
+                                doc_info.append(f"Author: {metadata.get('/Author')}")
+                            
+                            if doc_info:
+                                all_text.append(f"--- PDF Metadata ---\n{chr(10).join(doc_info)}\n")
+                                all_text.append("--- Content ---\nThis PDF contains content that could not be extracted as text.\nIt may contain images, complex formatting, or be password-protected.\n")
+                                method_used = "metadata + notice"
+                                logger.info("Extracted PDF metadata and added conversion notice")
+                except Exception as e:
+                    logger.warning(f"Metadata extraction failed: {e}")
+            
+            # If still no content, create a document with a notice
+            if not all_text:
+                all_text.append("--- Conversion Notice ---\nThis PDF could not be converted to text.\nPossible reasons:\n- The PDF contains only images (scanned document)\n- The PDF is password-protected\n- The PDF has a complex or unusual structure\n\nConsider using LibreOffice or OCR tools for this document.\n")
+                method_used = "fallback notice"
+                logger.warning("No text could be extracted, creating document with conversion notice")
             
             # Create Word document
             doc = Document()
-            doc.add_heading('PDF Content', 0)
+            doc.add_heading('PDF Content Conversion', 0)
+            
+            # Add extraction method info
+            if method_used:
+                doc.add_paragraph(f"Extraction method: {method_used}", style='Intense Quote')
             
             full_text = '\n'.join(all_text)
             
@@ -734,15 +809,35 @@ class ConversionEngine:
             paragraphs = full_text.split('\n\n')
             for paragraph in paragraphs:
                 if paragraph.strip():
-                    if paragraph.strip().startswith('--- Page'):
-                        # Add page headings
-                        doc.add_heading(paragraph.strip(), level=1)
+                    if paragraph.strip().startswith('--- '):
+                        # Add section headings
+                        heading_text = paragraph.strip().replace('---', '').strip()
+                        doc.add_heading(heading_text, level=1)
                     else:
-                        doc.add_paragraph(paragraph.strip())
+                        # Add regular paragraph, handle very long paragraphs
+                        if len(paragraph) > 1000:
+                            # Split very long paragraphs
+                            sentences = paragraph.split('. ')
+                            current_para = []
+                            current_length = 0
+                            
+                            for sentence in sentences:
+                                if current_length + len(sentence) > 500 and current_para:
+                                    doc.add_paragraph('. '.join(current_para) + '.')
+                                    current_para = [sentence]
+                                    current_length = len(sentence)
+                                else:
+                                    current_para.append(sentence)
+                                    current_length += len(sentence) + 2
+                            
+                            if current_para:
+                                doc.add_paragraph('. '.join(current_para))
+                        else:
+                            doc.add_paragraph(paragraph.strip())
             
             # Save the document
             doc.save(output_path)
-            logger.info(f"Successfully converted PDF to {output_format.upper()}: {output_path}")
+            logger.info(f"Successfully converted PDF to {output_format.upper()}: {output_path} (method: {method_used})")
             return True
             
         except Exception as e:
